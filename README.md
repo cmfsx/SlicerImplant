@@ -1,6 +1,8 @@
 # SlicerImplant
 Dental Implant planning, training, simulation and research extension for 3D Slicer.
 
+![](images/10x3mm.jpeg)
+![](images/10x3mm-in.jpeg)
 
 Acknowledgment
 
