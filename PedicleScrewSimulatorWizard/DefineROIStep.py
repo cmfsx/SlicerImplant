@@ -51,7 +51,7 @@ class DefineROIStep( PedicleScrewSimulatorStep ) :
     self.iSelector.addItems(['1','2','3','4','5','6','7','8','9','10','11','12'])
     self.aSelector = qt.QComboBox()
     self.aSelector.setMaximumWidth(120)
-    self.aSelector.addItems(['Posterior','Anterior','Left','Right'])
+    self.aSelector.addItems(['Superior','Inferior','Posterior','Anterior','Left','Right'])
     blank = qt.QLabel("  ")
     blank.setMaximumWidth(30)
     #self.__layout.addWidget(vText)

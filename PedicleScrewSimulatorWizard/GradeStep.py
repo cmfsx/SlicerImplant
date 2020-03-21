@@ -328,64 +328,63 @@ class GradeStep(PedicleScrewSimulatorStep):
         
         #Grade and chart screw
         self.contact(output, screwModel, fidName, screwIndex)
-        
-        
+
     def contact(self, input, screwModel, fidName, screwIndex):
-        #Get points in shaft of screw
+        # Get points in shaft of screw
         insidePoints = self.cropPoints(screwModel)
-        
-        #Get scalars to array
+
+        # Get scalars to array
         scalarsArray = input.GetPolyData().GetPointData().GetScalars('NRRDImage')
         self.pointsArray = screwModel.GetPolyData()
-        
-        #Get total number of tuples/points
+
+        # Get total number of tuples/points
         value = scalarsArray.GetNumberOfTuples()
-        
-        #Reset variables
+
+        # Reset variables
         bounds = [0]
         shaftBounds = 0
 
         corticalCount = 0
         cancellousCount = 0
         totalCount = 0
-        count = [0] * 10 # sum of values along the screw
-        points = [0] * 10 # number of points along the screw
-        countQ = [[0] * 10] * 4 # sum of values in countQ[quadrant][longitudinalSection]
+        count = [0] * 10  # sum of values along the screw
+        points = [0] * 10  # number of points along the screw
+        countQ = [[0] * 10] * 4  # sum of values in countQ[quadrant][longitudinalSection]
         pointsQ = [[0] * 10] * 4  # number of points in pointQ[quadrant][longitudinalSection]
-        
+
         xCenter = 0
-        zCenter = 0         
-        
+        zCenter = 0
+
         bounds = self.pointsArray.GetPoints().GetBounds()
-        lowerBound = bounds[2] #+ 17
-        shaftBounds = 30 # FOR NOW
+        lowerBound = bounds[2]  # + 17
+        shaftBounds = 30  # FOR NOW
         logging.debug(bounds)
-        xCenter = (bounds[0] + bounds[1])/2
-        zCenter = (bounds[4] + bounds[5])/2
-        
-        #For each point in the screw model...
+        xCenter = (bounds[0] + bounds[1]) / 2
+        yCenter = (bounds[2] + bounds[3]) / 2
+
+        # For each point in the screw model...
         point = [0]
-        point2 = [0,0,0]
+        point2 = [0, 0, 0]
         for i in range(0, value):
-            #If the point is in the shaft of the screw...
+            # If the point is in the shaft of the screw...
             if insidePoints.IsInside(i) != 1:
                 continue
             totalCount += 1
-            #Read scalar value at point to "point" array
+            # Read scalar value at point to "point" array
             scalarsArray.GetTypedTuple(i, point)
-            #logging.debug(point)
-            self.pointsArray.GetPoints().GetPoint(i,point2)
-            #logging.debug(point2)
+            # logging.debug(point)
+            self.pointsArray.GetPoints().GetPoint(i, point2)
+            # logging.debug(point2)
 
-            longitudinalIndex = int(math.floor((point2[1]-lowerBound)/shaftBounds * 10.0))
-            if longitudinalIndex<0 or longitudinalIndex>=10:
-              continue
+            longitudinalIndex = int(math.floor((point2[1] - lowerBound) / shaftBounds * 10.0))
+            if longitudinalIndex < 0 or longitudinalIndex >= 10:
+                continue
 
-            if point2[0] < xCenter and point2[2] >= zCenter:
+            if point2[0] < xCenter and point2[1] >= yCenter:
                 quadrantIndex = 0
-            elif point2[0] >= xCenter and point2[2] >= zCenter:
+            elif point2[0] >= xCenter and point2[1] >= yCenter:
                 quadrantIndex = 1
-            elif point2[0] < xCenter and point2[2] < zCenter:
+            elif point2[0] < xCenter and point2[1] < yCenter:
                 quadrantIndex = 2
             else:
                 quadrantIndex = 3
@@ -395,15 +394,15 @@ class GradeStep(PedicleScrewSimulatorStep):
             countQ[quadrantIndex][longitudinalIndex] += point[0]
             pointsQ[quadrantIndex][longitudinalIndex] += 1
 
-            #logging.debug(totalCount)
-            #Keep track of number of points that fall into cortical threshold and cancellous threshold respectively
+            logging.debug(totalCount)
+            # Keep track of number of points that fall into cortical threshold and cancellous threshold respectively
             if point[0] >= self.__corticalMin:
-              corticalCount += 1
+                corticalCount += 1
             elif point[0] < self.__corticalMin and point[0] >= self.__cancellousMin:
-              cancellousCount += 1
+                cancellousCount += 1
 
-        #Calculate averages
-        avgQuad = [[0] * 10] * 4 # average in quadrants
+        # Calculate averages
+        avgQuad = [[0] * 10] * 4  # average in quadrants
         for quadrantIndex in range(4):
             for longitudinalIndex in range(10):
                 numSamples = pointsQ[quadrantIndex][longitudinalIndex]
@@ -411,36 +410,148 @@ class GradeStep(PedicleScrewSimulatorStep):
                     continue
                 avgQuad[quadrantIndex][longitudinalIndex] = float(countQ[quadrantIndex][longitudinalIndex] / numSamples)
 
-        avg = [0.0] * 10 # average along the screw
+        avg = [0.0] * 10  # average along the screw
         for longitudinalIndex in range(10):
             if points[longitudinalIndex] > 0:
                 avg[longitudinalIndex] = count[longitudinalIndex] / points[longitudinalIndex]
 
         self.screwContact.insert(screwIndex, avg)
         '''
-              
+
         '''
-        #Calculate percentages 
-        corticalPercent = float(corticalCount) / float(totalCount) *100
-        cancellousPercent = float(cancellousCount) / float(totalCount) *100
+        # Calculate percentages
+        corticalPercent = float(corticalCount) / float(totalCount) * 100
+        cancellousPercent = float(cancellousCount) / float(totalCount) * 100
         otherPercent = 100 - corticalPercent - cancellousPercent
 
         coP = str("%.0f" % corticalPercent)
         caP = str("%.0f" % cancellousPercent)
         otP = str("%.0f" % otherPercent)
-          
+
         qtcoP = qt.QTableWidgetItem(coP)
         qtcap = qt.QTableWidgetItem(caP)
         qtotP = qt.QTableWidgetItem(otP)
-          
+
         self.itemsqtcoP.append(qtcoP)
         self.itemsqtcaP.append(qtcap)
         self.itemsqtotP.append(qtotP)
-        
+
         logging.debug(screwIndex)
         self.screwTable.setItem(screwIndex, 4, qtcoP)
         self.screwTable.setItem(screwIndex, 3, qtcap)
         self.screwTable.setItem(screwIndex, 2, qtotP)
+        
+    # def contact(self, input, screwModel, fidName, screwIndex):
+    #     #Get points in shaft of screw
+    #     insidePoints = self.cropPoints(screwModel)
+    #
+    #     #Get scalars to array
+    #     scalarsArray = input.GetPolyData().GetPointData().GetScalars('NRRDImage')
+    #     self.pointsArray = screwModel.GetPolyData()
+    #
+    #     #Get total number of tuples/points
+    #     value = scalarsArray.GetNumberOfTuples()
+    #
+    #     #Reset variables
+    #     bounds = [0]
+    #     shaftBounds = 0
+    #
+    #     corticalCount = 0
+    #     cancellousCount = 0
+    #     totalCount = 0
+    #     count = [0] * 10 # sum of values along the screw
+    #     points = [0] * 10 # number of points along the screw
+    #     countQ = [[0] * 10] * 4 # sum of values in countQ[quadrant][longitudinalSection]
+    #     pointsQ = [[0] * 10] * 4  # number of points in pointQ[quadrant][longitudinalSection]
+    #
+    #     xCenter = 0
+    #     zCenter = 0
+    #
+    #     bounds = self.pointsArray.GetPoints().GetBounds()
+    #     lowerBound = bounds[2] #+ 17
+    #     shaftBounds = 30 # FOR NOW
+    #     logging.debug(bounds)
+    #     xCenter = (bounds[0] + bounds[1])/2
+    #     zCenter = (bounds[4] + bounds[5])/2
+    #
+    #     #For each point in the screw model...
+    #     point = [0]
+    #     point2 = [0,0,0]
+    #     for i in range(0, value):
+    #         #If the point is in the shaft of the screw...
+    #         if insidePoints.IsInside(i) != 1:
+    #             continue
+    #         totalCount += 1
+    #         #Read scalar value at point to "point" array
+    #         scalarsArray.GetTypedTuple(i, point)
+    #         #logging.debug(point)
+    #         self.pointsArray.GetPoints().GetPoint(i,point2)
+    #         #logging.debug(point2)
+    #
+    #         longitudinalIndex = int(math.floor((point2[1]-lowerBound)/shaftBounds * 10.0))
+    #         if longitudinalIndex<0 or longitudinalIndex>=10:
+    #           continue
+    #
+    #         if point2[0] < xCenter and point2[2] >= zCenter:
+    #             quadrantIndex = 0
+    #         elif point2[0] >= xCenter and point2[2] >= zCenter:
+    #             quadrantIndex = 1
+    #         elif point2[0] < xCenter and point2[2] < zCenter:
+    #             quadrantIndex = 2
+    #         else:
+    #             quadrantIndex = 3
+    #
+    #         count[longitudinalIndex] += point[0]
+    #         points[longitudinalIndex] += 1
+    #         countQ[quadrantIndex][longitudinalIndex] += point[0]
+    #         pointsQ[quadrantIndex][longitudinalIndex] += 1
+    #
+    #         #logging.debug(totalCount)
+    #         #Keep track of number of points that fall into cortical threshold and cancellous threshold respectively
+    #         if point[0] >= self.__corticalMin:
+    #           corticalCount += 1
+    #         elif point[0] < self.__corticalMin and point[0] >= self.__cancellousMin:
+    #           cancellousCount += 1
+    #
+    #     #Calculate averages
+    #     avgQuad = [[0] * 10] * 4 # average in quadrants
+    #     for quadrantIndex in range(4):
+    #         for longitudinalIndex in range(10):
+    #             numSamples = pointsQ[quadrantIndex][longitudinalIndex]
+    #             if numSamples == 0:
+    #                 continue
+    #             avgQuad[quadrantIndex][longitudinalIndex] = float(countQ[quadrantIndex][longitudinalIndex] / numSamples)
+    #
+    #     avg = [0.0] * 10 # average along the screw
+    #     for longitudinalIndex in range(10):
+    #         if points[longitudinalIndex] > 0:
+    #             avg[longitudinalIndex] = count[longitudinalIndex] / points[longitudinalIndex]
+    #
+    #     self.screwContact.insert(screwIndex, avg)
+    #     '''
+    #
+    #     '''
+    #     #Calculate percentages
+    #     corticalPercent = float(corticalCount) / float(totalCount) *100
+    #     cancellousPercent = float(cancellousCount) / float(totalCount) *100
+    #     otherPercent = 100 - corticalPercent - cancellousPercent
+    #
+    #     coP = str("%.0f" % corticalPercent)
+    #     caP = str("%.0f" % cancellousPercent)
+    #     otP = str("%.0f" % otherPercent)
+    #
+    #     qtcoP = qt.QTableWidgetItem(coP)
+    #     qtcap = qt.QTableWidgetItem(caP)
+    #     qtotP = qt.QTableWidgetItem(otP)
+    #
+    #     self.itemsqtcoP.append(qtcoP)
+    #     self.itemsqtcaP.append(qtcap)
+    #     self.itemsqtotP.append(qtotP)
+    #
+    #     logging.debug(screwIndex)
+    #     self.screwTable.setItem(screwIndex, 4, qtcoP)
+    #     self.screwTable.setItem(screwIndex, 3, qtcap)
+    #     self.screwTable.setItem(screwIndex, 2, qtotP)
         
         
         

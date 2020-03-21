@@ -14,7 +14,7 @@ class ScrewStep(PedicleScrewSimulatorStep):
     def __init__( self, stepid ):
       self.initialize( stepid )
       self.setName( '5. Place Screws' )
-      self.setDescription( 'Load screw models and change orientation using sliders' )
+      self.setDescription( 'Load screw models and change orientation using sliders-chamath' )
       self.screwPath = None
       self.screwName = None
       self.coords = [0,0,0]
@@ -130,7 +130,7 @@ class ScrewStep(PedicleScrewSimulatorStep):
       widthText = qt.QLabel("Screw Width:    ")            
       self.length = ctk.ctkComboBox()
       self.length.toolTip = "Select a screw to insert."
-      screwList = ['Select a length (mm)','475', '550','625','700']
+      screwList = ['Select a length (mm)', '6', '8', '10', '475', '550','625','700']
       self.length.addItems(screwList)
       self.connect(self.length, PythonQt.QtCore.SIGNAL('activated(QString)'), self.length_chosen)
       self.lengthMeasure = qt.QLineEdit()
@@ -147,7 +147,7 @@ class ScrewStep(PedicleScrewSimulatorStep):
       
       self.diameter = ctk.ctkComboBox()
       self.diameter.toolTip = "Select a screw to insert."
-      screwList = ['Select a diameter (mm)','30', '35', '45', '50']
+      screwList = ['Select a diameter (mm)','3','30', '35', '45', '50']
       self.diameter.addItems(screwList)
       self.widthMeasure = qt.QLineEdit()
       self.connect(self.diameter, PythonQt.QtCore.SIGNAL('activated(QString)'), self.diameter_chosen)
@@ -195,15 +195,15 @@ class ScrewStep(PedicleScrewSimulatorStep):
       self.transformGrid.addWidget(iText, 0,2)
       
       self.b = ctk.ctkDoubleSpinBox()
-      self.b.minimum = -45
-      self.b.maximum = 45
+      self.b.minimum = -90
+      self.b.maximum = 90
       
       self.transformGrid.addWidget(self.b, 1,0)
       
       # Transform Sliders
       self.transformSlider1 = ctk.ctkDoubleSlider()
-      self.transformSlider1.minimum = -45
-      self.transformSlider1.maximum = 45
+      self.transformSlider1.minimum = -90
+      self.transformSlider1.maximum = 90
       self.transformSlider1.connect('valueChanged(double)', self.transformSlider1ValueChanged)
       self.transformSlider1.connect('valueChanged(double)', self.b.setValue)
       self.transformSlider1.setMinimumHeight(120)
@@ -214,8 +214,8 @@ class ScrewStep(PedicleScrewSimulatorStep):
       
       # Transform Sliders
       self.transformSlider2 = ctk.ctkSliderWidget()
-      self.transformSlider2.minimum = -45
-      self.transformSlider2.maximum = 45
+      self.transformSlider2.minimum = -90
+      self.transformSlider2.maximum = 90
       self.transformSlider2.connect('valueChanged(double)', self.transformSlider2ValueChanged)
       self.transformSlider2.setMaximumWidth(200)
       #self.__layout.addRow("Rotate LR", self.transformSlider2)
@@ -420,7 +420,9 @@ class ScrewStep(PedicleScrewSimulatorStep):
         
     def combo_chosen(self):
         if self.__length != "Select a length (mm)" and self.__diameter != "Select a diameter (mm)":
-          self.screwPath = os.path.join(os.path.dirname(slicer.modules.pediclescrewsimulator.path), 'Resources/ScrewModels/scaled_' + self.__length + 'x' + self.__diameter + '.vtk')
+          # self.screwPath = os.path.join(os.path.dirname(slicer.modules.pediclescrewsimulator.path), 'Resources/ScrewModels/scaled_' + self.__length + 'x' + self.__diameter + '.vtk')
+          self.screwPath = os.path.join(os.path.dirname(slicer.modules.pediclescrewsimulator.path),
+                                        'Resources/ScrewModels/' + self.__diameter + 'x' + self.__length + 'mm.stl')
           self.screwPath = self.screwPath.replace("\\","/")
           logging.debug("Screw file path: {0}".format(self.screwPath))
           self.__loadScrewButton.enabled = True
@@ -442,15 +444,34 @@ class ScrewStep(PedicleScrewSimulatorStep):
             return
 
         matrix = vtk.vtkMatrix4x4()
+        # matrix.DeepCopy((1, 0, 0, self.coords[0],
+        #                0, 0, -1, self.coords[1],
+        #                0, -1, 0, self.coords[2],
+        #                0, 0, 0, 1))
+        # matrix.DeepCopy((1, 0, 0, self.coords[0],
+        #                  0, 0, 1, self.coords[1],
+        #                  0, 1, 0, self.coords[2],
+        #                  0, 0, 0, 1))
         matrix.DeepCopy((1, 0, 0, self.coords[0],
-                       0, -1, 0, self.coords[1],
-                       0, 0, -1, self.coords[2],
-                       0, 0, 0, 1))
+                         0, 1, 0, self.coords[1],
+                         0, 0, 1, self.coords[2],
+                         0, 0, 0, 1))
 
         transformScrewTemp = slicer.vtkMRMLLinearTransformNode()
         transformScrewTemp.SetName("Transform-%s" % self.currentFidLabel)
         slicer.mrmlScene.AddNode(transformScrewTemp)
         transformScrewTemp.ApplyTransformMatrix(matrix)
+
+        # transform = vtk.vtkTransform()
+        # transform.RotateWXYZ(0, 45, 0, 1)
+        # transformScrewTemp.ApplyTransform(transform)
+
+
+        # alignedMatrix = vtk.vtkMatrix3x3()
+        # alignedMatrix.DeepCopy((1, 0, 0,
+        #                  0, 0.669, -0.743,
+        #                  0, 0.74, 0.669))
+        # self.transformScrewComposite(alignedMatrix)
 
         screwModel.SetName('Screw at point %s' % self.currentFidLabel)
         screwModel.SetAndObserveTransformNodeID(transformScrewTemp.GetID())
@@ -535,6 +556,18 @@ class ScrewStep(PedicleScrewSimulatorStep):
           camera.SetFocalPoint(*position)
           camera.SetPosition(400,position[1],position[2])
           camera.SetViewUp([0,0,1])
+
+      elif self.approach == 'Superior':
+
+          camera.SetFocalPoint(*position)
+          camera.SetPosition(position[0], position[1], 400)
+          camera.SetViewUp([0, 0, 1])
+
+      elif self.approach == 'Inferior':
+
+          camera.SetFocalPoint(*position)
+          camera.SetPosition(position[0], position[1], -400)
+          camera.SetViewUp([0, 0, 1])
       
       camera.ResetClippingRange()
           
@@ -549,6 +582,8 @@ class ScrewStep(PedicleScrewSimulatorStep):
         matrix1.DeepCopy([ 1, 0, 0,
                           0, math.cos(angle1), -math.sin(angle1),
                           0, math.sin(angle1), math.cos(angle1)])
+
+        # print(matrix1)
 
         self.transformScrewComposite(matrix1)
         
@@ -600,17 +635,20 @@ class ScrewStep(PedicleScrewSimulatorStep):
     
                             
     def driveScrew(self):
-        if self.screwInsert < int(self.__diameter):
+        if self.screwInsert < int(self.__length):
             
             value = self.screwInsert
             # attempt to rotate with driving        
             
-            angle3 = math.pi / 180.0 * 72 #((360/2.5)*self.screwInsert) 
+            angle3 = math.pi / 180.0 * 72 #((360/2.5)*self.screwInsert)
         
             matrix3 = vtk.vtkMatrix3x3()
-            matrix3.DeepCopy([ math.cos(angle3), 0, -math.sin(angle3),
-                          0, 1, 0,
-                          math.sin(angle3), 0, math.cos(angle3)])
+            # matrix3.DeepCopy([ math.cos(angle3), 0, -math.sin(angle3),
+            #               0, 1, 0,
+            #               math.sin(angle3), 0, math.cos(angle3)])
+            matrix3.DeepCopy([math.cos(angle3), -math.sin(angle3), 0,
+                              math.sin(angle3), math.cos(angle3), 0,
+                              0, 0, 1])
         
             self.transformScrewComposite(matrix3)
 
@@ -622,9 +660,13 @@ class ScrewStep(PedicleScrewSimulatorStep):
         
             newVal = value - self.driveTemp
         
-            drive1 = matrixScrew.GetElement(0,1)
-            drive2 = matrixScrew.GetElement(1,1)
-            drive3 = matrixScrew.GetElement(2,1)
+            # drive1 = matrixScrew.GetElement(0,1)
+            # drive2 = matrixScrew.GetElement(1,1)
+            # drive3 = matrixScrew.GetElement(2,1)
+
+            drive1 = matrixScrew.GetElement(0,2)
+            drive2 = matrixScrew.GetElement(1,2)
+            drive3 = matrixScrew.GetElement(2,2)
         
             coord1 = drive1 * newVal + matrixScrew.GetElement(0,3)
             coord2 = drive2 * newVal + matrixScrew.GetElement(1,3)
@@ -633,6 +675,8 @@ class ScrewStep(PedicleScrewSimulatorStep):
             matrixScrew.SetElement(0,3,coord1)
             matrixScrew.SetElement(1,3,coord2)
             matrixScrew.SetElement(2,3,coord3)
+
+            print(matrixScrew)
 
             transformFid.SetMatrixTransformToParent(matrixScrew)
                 
@@ -681,7 +725,7 @@ class ScrewStep(PedicleScrewSimulatorStep):
         self.driveTemp = value
         '''   
     def reverseScrew(self):
-        if self.screwInsert < int(self.__diameter):
+        if self.screwInsert < int(self.__length):
             
             value = self.screwInsert
             # attempt to rotate with driving        
@@ -689,9 +733,13 @@ class ScrewStep(PedicleScrewSimulatorStep):
             angle3 = math.pi / 180.0 * -72 #((360/2.5)*self.screwInsert) 
         
             matrix3 = vtk.vtkMatrix3x3()
-            matrix3.DeepCopy([ math.cos(angle3), 0, -math.sin(angle3),
-                          0, 1, 0,
-                          math.sin(angle3), 0, math.cos(angle3)])
+            # matrix3.DeepCopy([ math.cos(angle3), 0, -math.sin(angle3),
+            #               0, 1, 0,
+            #               math.sin(angle3), 0, math.cos(angle3)])
+
+            matrix3.DeepCopy([math.cos(angle3), -math.sin(angle3), 0,
+                              math.sin(angle3), math.cos(angle3), 0,
+                              0, 0, 1])
         
             self.transformScrewComposite(matrix3)
 
@@ -701,9 +749,13 @@ class ScrewStep(PedicleScrewSimulatorStep):
         
             newVal = value - self.driveTemp
         
-            drive1 = matrixScrew.GetElement(0,1)
-            drive2 = matrixScrew.GetElement(1,1)
-            drive3 = matrixScrew.GetElement(2,1)
+            # drive1 = matrixScrew.GetElement(0,1)
+            # drive2 = matrixScrew.GetElement(1,1)
+            # drive3 = matrixScrew.GetElement(2,1)
+
+            drive1 = matrixScrew.GetElement(0, 2)
+            drive2 = matrixScrew.GetElement(1, 2)
+            drive3 = matrixScrew.GetElement(2, 2)
         
             coord1 = drive1 * newVal + matrixScrew.GetElement(0,3)
             coord2 = drive2 * newVal + matrixScrew.GetElement(1,3)
