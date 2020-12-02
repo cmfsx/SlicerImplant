@@ -5,7 +5,7 @@ Dental Implant planning, training, simulation and research extension for 3D Slic
 
 ![](Images/10x3mm.jpeg)
 
-
+In development stage
 Acknowledgment
 
 This work is inspired by the 3D Slicer module for pedicle screw insertion
